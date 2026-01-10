@@ -2,72 +2,269 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <link rel="manifest" href="manifest.json">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>X-Wind Calc</title>
+    <link rel="manifest" href="manifest.json">
+    <title>X-Wind Pro Visualizer</title>
     <style>
-        /* ここにCSSをすべて貼り付け */
-        :root { --bg-color: #0f172a; --card-bg: #1e293b; --accent: #38bdf8; --safe: #10b981; --warning: #f59e0b; --danger: #ef4444; }
-        body { background-color: var(--bg-color); color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
-        .calculator { background: var(--card-bg); width: 360px; padding: 20px; border-radius: 20px; border: 1px solid #334155; }
-        .visualizer-container { background: #020617; border-radius: 12px; margin-bottom: 15px; display: flex; justify-content: center; border: 1px solid #334155; }
-        .input-section { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
-        .field { background: #0f172a; padding: 10px; border-radius: 8px; text-align: center; border: 2px solid transparent; }
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #38bdf8;
+            --safe: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .calculator {
+            background: var(--card-bg);
+            width: 360px;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            border: 1px solid #334155;
+        }
+
+        .visualizer-container {
+            background: #020617;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+            border: 1px solid #334155;
+        }
+
+        .input-section {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .field {
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid transparent;
+            cursor: pointer;
+        }
+
         .field.active { border-color: var(--accent); }
-        .field label { display: block; font-size: 10px; color: var(--accent); margin-bottom: 4px; }
+        .field label { display: block; font-size: 10px; color: var(--accent); font-weight: bold; margin-bottom: 4px; }
         .field input { width: 100%; background: transparent; border: none; color: white; font-size: 18px; text-align: center; outline: none; }
-        #display-result { background: #020617; height: 60px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 16px; font-weight: bold; border-radius: 8px; margin-bottom: 15px; color: var(--safe); }
+
+        #display-result {
+            background: #020617;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            color: var(--safe);
+            line-height: 1.4;
+        }
+
         #display-result.warning { color: var(--warning); border: 1px solid var(--warning); }
         #display-result.danger { color: var(--danger); border: 1px solid var(--danger); }
-        .keypad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-        button { padding: 15px; font-size: 18px; border: none; border-radius: 10px; background: #334155; color: white; -webkit-appearance: none; }
+
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        button {
+            padding: 18px 5px;
+            font-size: 20px;
+            border: none;
+            border-radius: 10px;
+            background: #334155;
+            color: white;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button:active { background: #475569; transform: scale(0.95); }
         .btn-calc { background: var(--accent); grid-row: span 2; color: #0f172a; font-weight: bold; }
-        .btn-opp { background: #6366f1; font-size: 11px; }
+        .btn-clear, .btn-del { background: #475569; font-size: 14px; }
+        .btn-opp { background: #6366f1; font-size: 11px; font-weight: bold; }
+        .btn-zero { grid-column: span 1; }
     </style>
 </head>
 <body>
+
     <div class="calculator">
-        <div class="visualizer-container"><canvas id="windCanvas" width="300" height="150"></canvas></div>
+        <div class="visualizer-container">
+            <canvas id="windCanvas" width="300" height="160"></canvas>
+        </div>
+
         <div class="screen">
             <div class="input-section">
-                <div class="field active" id="field-runway" onclick="setActive('runway')"><label>Runway</label><input id="runway" type="number" readonly></div>
-                <div class="field" id="field-windDir" onclick="setActive('windDir')"><label>Wind Dir</label><input id="windDir" type="number" readonly></div>
-                <div class="field" id="field-windSpeed" onclick="setActive('windSpeed')"><label>Wind Speed</label><input id="windSpeed" type="number" readonly></div>
+                <div class="field active" id="field-runway" onclick="setActive('runway')">
+                    <label>Runway</label>
+                    <input id="runway" type="number" placeholder="00" readonly>
+                </div>
+                <div class="field" id="field-windDir" onclick="setActive('windDir')">
+                    <label>Wind Dir</label>
+                    <input id="windDir" type="number" placeholder="000" readonly>
+                </div>
+                <div class="field" id="field-windSpeed" onclick="setActive('windSpeed')">
+                    <label>Wind Speed</label>
+                    <input id="windSpeed" type="number" placeholder="00" readonly>
+                </div>
             </div>
             <div id="display-result">READY</div>
         </div>
+
         <div class="keypad">
-            <button onclick="appendNumber('7')">7</button><button onclick="appendNumber('8')">8</button><button onclick="appendNumber('9')">9</button><button onclick="clearAll()" style="background:#475569">CLR</button>
-            <button onclick="appendNumber('4')">4</button><button onclick="appendNumber('5')">5</button><button onclick="appendNumber('6')">6</button><button onclick="deleteLast()" style="background:#475569">DEL</button>
-            <button onclick="appendNumber('1')">1</button><button onclick="appendNumber('2')">2</button><button onclick="appendNumber('3')">3</button><button onclick="calculate()" class="btn-calc">CALC</button>
-            <button onclick="appendNumber('0')" style="grid-column: span 1">0</button><button onclick="appendNumber('.')">.</button><button onclick="switchRunway()" class="btn-opp">OPP RWY</button>
+            <button onclick="appendNumber('7')">7</button>
+            <button onclick="appendNumber('8')">8</button>
+            <button onclick="appendNumber('9')">9</button>
+            <button onclick="clearAll()" class="btn-clear">CLR</button>
+
+            <button onclick="appendNumber('4')">4</button>
+            <button onclick="appendNumber('5')">5</button>
+            <button onclick="appendNumber('6')">6</button>
+            <button onclick="deleteLast()" class="btn-del">DEL</button>
+
+            <button onclick="appendNumber('1')">1</button>
+            <button onclick="appendNumber('2')">2</button>
+            <button onclick="appendNumber('3')">3</button>
+            <button onclick="calculate()" class="btn-calc">CALC</button>
+
+            <button onclick="appendNumber('0')" class="btn-zero">0</button>
+            <button onclick="appendNumber('.')">.</button>
+            <button onclick="switchRunway()" class="btn-opp">OPP RWY</button>
         </div>
     </div>
+
     <script>
         let currentActiveField = 'runway';
-        function setActive(f){currentActiveField=f;document.querySelectorAll('.field').forEach(el=>el.classList.remove('active'));document.getElementById('field-'+f).classList.add('active');}
-        function appendNumber(n){const i=document.getElementById(currentActiveField);i.value+=n;if(currentActiveField==='runway'&&i.value.length===2)setActive('windDir');else if(currentActiveField==='windDir'&&i.value.length===3)setActive('windSpeed');}
-        function deleteLast(){const i=document.getElementById(currentActiveField);i.value=i.value.slice(0,-1);}
-        function clearAll(){document.querySelectorAll('input').forEach(i=>i.value="");setActive('runway');document.getElementById('display-result').className="";document.getElementById('display-result').innerText="READY";}
-        function switchRunway(){const r=document.getElementById('runway');let v=parseInt(r.value);if(!isNaN(v)){r.value=(v<=18?v+18:v-18).toString().padStart(2,'0');calculate();}}
-        function calculate(){
-            const r=parseFloat(document.getElementById('runway').value)*10, d=parseFloat(document.getElementById('windDir').value), s=parseFloat(document.getElementById('windSpeed').value);
-            if(isNaN(r)||isNaN(d)||isNaN(s))return;
-            const rad=Math.abs(d-r)*(Math.PI/180), xw=Math.abs(s*Math.sin(rad)), hw=s*Math.cos(rad);
-            const res=document.getElementById('display-result');
-            res.className=xw>38?'danger':xw>19?'warning':'';
-            res.innerHTML=`X-WIND: ${xw.toFixed(1)} KT | ${hw>=0?'HEAD':'TAIL'}: ${Math.abs(hw).toFixed(1)} KT`;
-            draw(r,d);
+
+        function setActive(f) {
+            currentActiveField = f;
+            document.querySelectorAll('.field').forEach(el => el.classList.remove('active'));
+            document.getElementById('field-' + f).classList.add('active');
         }
-        function draw(r,d){
-            const c=document.getElementById('windCanvas'),ctx=c.getContext('2d'),cx=c.width/2,cy=c.height/2;
-            ctx.clearRect(0,0,c.width,c.height);
-            ctx.save();ctx.translate(cx,cy);ctx.rotate((r-90)*Math.PI/180);ctx.fillStyle="#334155";ctx.fillRect(-60,-10,120,20);ctx.restore();
-            ctx.save();ctx.translate(cx,cy);ctx.rotate((d-90)*Math.PI/180);ctx.strokeStyle="#38bdf8";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(60,0);ctx.lineTo(20,0);ctx.stroke();ctx.restore();
+
+        function appendNumber(n) {
+            const i = document.getElementById(currentActiveField);
+            i.value += n;
+            if (currentActiveField === 'runway' && i.value.length === 2) setActive('windDir');
+            else if (currentActiveField === 'windDir' && i.value.length === 3) setActive('windSpeed');
+        }
+
+        function deleteLast() {
+            const i = document.getElementById(currentActiveField);
+            i.value = i.value.slice(0, -1);
+        }
+
+        function clearAll() {
+            document.querySelectorAll('input').forEach(i => i.value = "");
+            setActive('runway');
+            document.getElementById('display-result').className = "";
+            document.getElementById('display-result').innerText = "READY";
+            const canvas = document.getElementById('windCanvas');
+            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function switchRunway() {
+            const r = document.getElementById('runway');
+            let v = parseInt(r.value);
+            if (!isNaN(v)) {
+                r.value = (v <= 18 ? v + 18 : v - 18).toString().padStart(2, '0');
+                calculate();
+            }
+        }
+
+        function calculate() {
+            const rVal = parseFloat(document.getElementById('runway').value);
+            const d = parseFloat(document.getElementById('windDir').value);
+            const s = parseFloat(document.getElementById('windSpeed').value);
+
+            if (isNaN(rVal) || isNaN(d) || isNaN(s)) return;
+
+            const rDeg = rVal * 10;
+            const rad = Math.abs(d - rDeg) * (Math.PI / 180);
+            const xw = Math.abs(s * Math.sin(rad));
+            const hw = s * Math.cos(rad);
+
+            const res = document.getElementById('display-result');
+            res.className = xw > 38 ? 'danger' : xw > 19 ? 'warning' : '';
+            res.innerHTML = `X-WIND: ${xw.toFixed(1)} KT | ${hw >= 0 ? 'HEAD' : 'TAIL'}: ${Math.abs(hw).toFixed(1)} KT`;
+
+            drawVisuals(rDeg, d);
+        }
+
+        function drawVisuals(rDeg, wDir) {
+            const canvas = document.getElementById('windCanvas');
+            const ctx = canvas.getContext('2d');
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const rwyNum = document.getElementById('runway').value;
+
+            // 滑走路の描画
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate((rDeg - 90) * Math.PI / 180);
+            ctx.fillStyle = "#334155";
+            ctx.fillRect(-80, -15, 160, 30);
+            ctx.strokeStyle = "white";
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath(); ctx.moveTo(-70, 0); ctx.lineTo(70, 0); ctx.stroke();
+            
+            // 滑走路番号
+            ctx.setLineDash([]);
+            ctx.fillStyle = "white";
+            ctx.font = "bold 14px Arial";
+            ctx.save();
+            ctx.translate(-60, 0);
+            ctx.rotate(Math.PI / 2);
+            ctx.fillText(rwyNum, -8, 5);
+            ctx.restore();
+            ctx.restore();
+
+            // 矢羽根（風の矢印）
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate((wDir - 90) * Math.PI / 180);
+            ctx.strokeStyle = "#38bdf8";
+            ctx.fillStyle = "#38bdf8";
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(85, 0); ctx.lineTo(35, 0); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(35, 0); ctx.lineTo(48, -7); ctx.lineTo(48, 7); ctx.fill();
+            // 羽根の部分
+            ctx.beginPath();
+            ctx.moveTo(85, 0); ctx.lineTo(95, -10); ctx.moveTo(85, 0); ctx.lineTo(95, 10);
+            ctx.moveTo(75, 0); ctx.lineTo(85, -10); ctx.moveTo(75, 0); ctx.lineTo(85, 10);
+            ctx.stroke();
+            ctx.restore();
+
+            // 北方位
+            ctx.fillStyle = "#94a3b8";
+            ctx.font = "12px sans-serif";
+            ctx.fillText("N", cx - 4, 15);
         }
     </script>
 </body>
-
 </html>
