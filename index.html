@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <title>X-Wind Pro - High Resolution</title>
+    <title>X-Wind Pro - Refined High-Res</title>
     <style>
         :root {
             --bg-color: #0f121a;
@@ -170,84 +170,98 @@
         function appendLimitNum(n) { const el = document.getElementById('val-'+limitTarget); if(isFirstInput){el.innerText=n; isFirstInput=false;} else if(el.innerText.length<3)el.innerText+=n; limits[limitTarget]=parseInt(el.innerText); }
         function clearLimit() { document.getElementById('val-'+limitTarget).innerText="0"; limits[limitTarget]=0; isFirstInput=true; }
         function setActive(f) { currentActiveField = f; isFirstInput = true; document.querySelectorAll('.field').forEach(el=>el.classList.remove('active')); document.getElementById('field-'+f).classList.add('active'); }
-        function appendNumber(n) { const i = document.getElementById(currentActiveField); if(isFirstInput){i.value=n; isFirstInput=false;} else { if(currentActiveField==='runway'&&i.value.length>=2)return; if(i.value.length>=3)return; i.value+=n; } if(currentActiveField==='runway'&&i.value.length===2)setActive('windDir'); else if(currentActiveField==='windDir'&&i.value.length===3)setActive('windSpeed'); }
-        function deleteLast() { const i=document.getElementById(currentActiveField); i.value=i.value.slice(0,-1); }
+        
+        function appendNumber(n) { 
+            const i = document.getElementById(currentActiveField); 
+            if(isFirstInput){i.value=n; isFirstInput=false;} 
+            else { 
+                if(currentActiveField==='runway'&&i.value.length>=2)return; 
+                if(i.value.length>=3)return; 
+                i.value+=n; 
+            } 
+            // 数字が変わるたびに再計算（図に同期させる）
+            calculate();
+            
+            if(currentActiveField==='runway'&&i.value.length===2) setActive('windDir'); 
+            else if(currentActiveField==='windDir'&&i.value.length===3) setActive('windSpeed');
+        }
+
+        function deleteLast() { const i=document.getElementById(currentActiveField); i.value=i.value.slice(0,-1); calculate(); }
         function clearAll() { document.querySelectorAll('.screen input').forEach(i=>i.value=""); setActive('runway'); calculate(); }
         function switchRunway() { const r=document.getElementById('runway'); if(r.value){r.value=(parseInt(r.value)<=18?parseInt(r.value)+18:parseInt(r.value)-18).toString().padStart(2,'0'); calculate();} }
 
         function calculate() {
-            const rVal = parseFloat(document.getElementById('runway').value), d = parseFloat(document.getElementById('windDir').value), s = parseFloat(document.getElementById('windSpeed').value);
-            if(isNaN(rVal)||isNaN(d)||isNaN(s)) { draw(rVal*10||0, d||0); return; }
-            const rDeg = rVal*10, rad = (d-rDeg)*(Math.PI/180), xw = Math.abs(s*Math.sin(rad)), hw = s*Math.cos(rad);
+            const rIn = document.getElementById('runway').value;
+            const rVal = parseFloat(rIn), d = parseFloat(document.getElementById('windDir').value), s = parseFloat(document.getElementById('windSpeed').value);
+            
+            const rDeg = !isNaN(rVal) ? rVal * 10 : 0;
             const res = document.getElementById('display-result');
+            
+            if(isNaN(rVal)||isNaN(d)||isNaN(s)) {
+                res.className = ""; res.innerText = "READY";
+                draw(rDeg, isNaN(d) ? 0 : d);
+                return;
+            }
+
+            const rad = (d-rDeg)*(Math.PI/180), xw = Math.abs(s*Math.sin(rad)), hw = s*Math.cos(rad);
             res.className = "";
             if(xw > limits.aXwind || (hw < -limits.aTail)) res.classList.add('danger-text');
             else if(xw > limits.pXwind || (hw < -limits.pTail)) res.classList.add('warn-text');
             res.innerHTML = `X-WIND: ${xw.toFixed(1)} KT<br>${hw>=0?'HEAD':'TAIL'}: ${Math.abs(hw).toFixed(1)} KT`;
+            
             draw(rDeg, d);
         }
 
         function draw(rDeg, wDir) {
             const c=document.getElementById('windCanvas'), ctx=c.getContext('2d'), cx=c.width/2, cy=c.height/2;
+            const rText = document.getElementById('runway').value || "00";
             ctx.clearRect(0,0,c.width,c.height);
             ctx.save(); ctx.translate(cx,cy);
             
+            // 方位目盛り
             ctx.strokeStyle = "#2a3147"; ctx.lineWidth = 1.5;
             for(let i=0; i<360; i+=10) {
                 ctx.save(); ctx.rotate(i*Math.PI/180);
                 ctx.beginPath(); ctx.moveTo(0,-80); ctx.lineTo(0, i%90===0?-65:-75); ctx.stroke(); ctx.restore();
             }
-            if(document.getElementById('mode-toggle').checked) {
-                ctx.save(); ctx.rotate((rDeg-90)*Math.PI/180); drawHighResR(ctx, document.getElementById('runway').value || "00"); ctx.restore();
+
+            if(document.getElementById('mode-toggle').checked) { // North Up
+                ctx.save(); ctx.rotate((rDeg-90)*Math.PI/180); drawR(ctx, rText); ctx.restore();
                 drawW(ctx, (wDir-90)*Math.PI/180); drawN(ctx, 0);
-            } else {
-                drawHighResR(ctx, document.getElementById('runway').value || "00");
+            } else { // Heading Up
+                drawR(ctx, rText);
                 drawW(ctx, (wDir-rDeg-90)*Math.PI/180); drawN(ctx, -rDeg);
             }
             ctx.restore();
         }
 
-        function drawHighResR(ctx, num) {
-            // 滑走路本体（アスファルト）
-            const grad = ctx.createLinearGradient(-15, 0, 15, 0);
-            grad.addColorStop(0, "#3d445a");
-            grad.addColorStop(0.5, "#4a526d");
-            grad.addColorStop(1, "#3d445a");
-            ctx.fillStyle = grad;
-            ctx.fillRect(-15, -70, 30, 140);
+        function drawR(ctx, num) {
+            // 滑走路本体
+            ctx.fillStyle = "#3d445a";
+            ctx.fillRect(-12, -60, 24, 120);
 
             // センターライン
-            ctx.strokeStyle = "rgba(255,255,255,0.8)";
-            ctx.lineWidth = 1;
-            ctx.setLineDash([8, 8]);
-            ctx.beginPath(); ctx.moveTo(0, -60); ctx.lineTo(0, 60); ctx.stroke();
-            ctx.setLineDash([]);
+            ctx.strokeStyle = "rgba(255,255,255,0.7)";
+            ctx.lineWidth = 1; ctx.setLineDash([6, 6]);
+            ctx.beginPath(); ctx.moveTo(0, -50); ctx.lineTo(0, 50); ctx.stroke(); ctx.setLineDash([]);
 
-            // スレッショルド・マーキング (ピアノキー)
+            // スレッショルド（ピアノキー）のみ
             ctx.fillStyle = "white";
-            for(let i=-10; i<=10; i+=4) {
-                ctx.fillRect(i, 55, 2, 10); // 手前
-                ctx.fillRect(i, -65, 2, 10); // 奥
+            for(let i=-8; i<=8; i+=4) {
+                ctx.fillRect(i, 52, 2, 8); 
+                ctx.fillRect(i, -60, 2, 8);
             }
 
-            // エイミング・ポイント (太い白帯)
-            ctx.fillRect(-10, 25, 6, 15); ctx.fillRect(4, 25, 6, 15);
-            ctx.fillRect(-10, -40, 6, 15); ctx.fillRect(4, -40, 6, 15);
-
-            // 接地帯マーキング
-            ctx.fillRect(-10, 10, 4, 2); ctx.fillRect(6, 10, 4, 2);
-            ctx.fillRect(-10, -12, 4, 2); ctx.fillRect(6, -12, 4, 2);
+            // エイミングポイント
+            ctx.fillRect(-8, 20, 5, 12); ctx.fillRect(3, 20, 5, 12);
+            ctx.fillRect(-8, -32, 5, 12); ctx.fillRect(3, -32, 5, 12);
 
             // 滑走路番号
-            ctx.font = "bold 12px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText(num, 0, 50);
-
+            ctx.font = "bold 13px Arial"; ctx.textAlign = "center";
+            ctx.fillText(num, 0, 48);
             let n = parseInt(num) || 0;
             let opp = (n<=18?n+18:n-18).toString().padStart(2,'0');
-            ctx.save(); ctx.translate(0, -50); ctx.rotate(Math.PI);
-            ctx.fillText(opp, 0, 0);
-            ctx.restore();
+            ctx.save(); ctx.translate(0,-40); ctx.rotate(Math.PI); ctx.fillText(opp, 0, 0); ctx.restore();
         }
 
         function drawW(ctx, rad) {
