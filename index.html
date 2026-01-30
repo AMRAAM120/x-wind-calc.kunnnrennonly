@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <title>X-Wind Pro Visualizer</title>
+    <title>X-Wind Pro - Fixed</title>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -15,12 +15,13 @@
             --safe: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
+            --gray: #94a3b8;
         }
 
         body {
             background-color: var(--bg-color);
             color: white;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -34,8 +35,19 @@
             width: 360px;
             padding: 20px;
             border-radius: 20px;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
             border: 1px solid #334155;
+            position: relative;
+        }
+
+        .settings-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 10;
         }
 
         .visualizer-container {
@@ -45,6 +57,7 @@
             display: flex;
             justify-content: center;
             border: 1px solid #334155;
+            height: 160px;
         }
 
         .input-section {
@@ -60,12 +73,21 @@
             border-radius: 8px;
             text-align: center;
             border: 2px solid transparent;
-            cursor: pointer;
+            transition: 0.2s;
         }
-
         .field.active { border-color: var(--accent); }
         .field label { display: block; font-size: 10px; color: var(--accent); font-weight: bold; margin-bottom: 4px; }
-        .field input { width: 100%; background: transparent; border: none; color: white; font-size: 18px; text-align: center; outline: none; }
+        
+        /* 入力文字を中央揃え */
+        .field input { 
+            width: 100%; 
+            background: transparent; 
+            border: none; 
+            color: white; 
+            font-size: 20px; 
+            text-align: center; 
+            outline: none; 
+        }
 
         #display-result {
             background: #020617;
@@ -81,37 +103,52 @@
             color: var(--safe);
             line-height: 1.4;
         }
-
         #display-result.warning { color: var(--warning); border: 1px solid var(--warning); }
         #display-result.danger { color: var(--danger); border: 1px solid var(--danger); }
 
-        .keypad {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-        }
-
-        button {
-            padding: 18px 5px;
-            font-size: 20px;
-            border: none;
-            border-radius: 10px;
-            background: #334155;
-            color: white;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        button:active { background: #475569; transform: scale(0.95); }
+        .keypad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        button { padding: 16px 5px; font-size: 20px; border: none; border-radius: 10px; background: #334155; color: white; cursor: pointer; }
         .btn-calc { background: var(--accent); grid-row: span 2; color: #0f172a; font-weight: bold; }
         .btn-clear, .btn-del { background: #475569; font-size: 14px; }
-        .btn-opp { background: #6366f1; font-size: 11px; font-weight: bold; }
-        .btn-zero { grid-column: span 1; }
+
+        #settings-modal {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #1e293b;
+            border-radius: 20px;
+            z-index: 20;
+            padding: 40px 20px;
+            box-sizing: border-box;
+        }
+        .modal-header { font-size: 20px; font-weight: bold; margin-bottom: 30px; border-bottom: 1px solid #334155; padding-bottom: 10px;}
+        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--safe); }
+        input:checked + .slider:before { transform: translateX(24px); }
     </style>
 </head>
 <body>
 
     <div class="calculator">
+        <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
+
+        <div id="settings-modal">
+            <div class="modal-header">Settings</div>
+            <div class="setting-row">
+                <span>Heading Up Mode</span>
+                <label class="switch">
+                    <input type="checkbox" id="mode-toggle" onchange="calculate()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <button onclick="toggleSettings()" style="width: 100%; margin-top: 50px; background: var(--accent); color: #000;">Back</button>
+        </div>
+
         <div class="visualizer-container">
             <canvas id="windCanvas" width="300" height="160"></canvas>
         </div>
@@ -120,56 +157,65 @@
             <div class="input-section">
                 <div class="field active" id="field-runway" onclick="setActive('runway')">
                     <label>Runway</label>
-                    <input id="runway" type="number" placeholder="00" readonly>
+                    <input id="runway" type="text" placeholder="00" readonly>
                 </div>
                 <div class="field" id="field-windDir" onclick="setActive('windDir')">
                     <label>Wind Dir</label>
-                    <input id="windDir" type="number" placeholder="000" readonly>
+                    <input id="windDir" type="text" placeholder="000" readonly>
                 </div>
                 <div class="field" id="field-windSpeed" onclick="setActive('windSpeed')">
                     <label>Wind Speed</label>
-                    <input id="windSpeed" type="number" placeholder="00" readonly>
+                    <input id="windSpeed" type="text" placeholder="000" readonly>
                 </div>
             </div>
             <div id="display-result">READY</div>
         </div>
 
         <div class="keypad">
-            <button onclick="appendNumber('7')">7</button>
-            <button onclick="appendNumber('8')">8</button>
-            <button onclick="appendNumber('9')">9</button>
-            <button onclick="clearAll()" class="btn-clear">CLR</button>
-
-            <button onclick="appendNumber('4')">4</button>
-            <button onclick="appendNumber('5')">5</button>
-            <button onclick="appendNumber('6')">6</button>
-            <button onclick="deleteLast()" class="btn-del">DEL</button>
-
-            <button onclick="appendNumber('1')">1</button>
-            <button onclick="appendNumber('2')">2</button>
-            <button onclick="appendNumber('3')">3</button>
-            <button onclick="calculate()" class="btn-calc">CALC</button>
-
-            <button onclick="appendNumber('0')" class="btn-zero">0</button>
-            <button onclick="appendNumber('.')">.</button>
-            <button onclick="switchRunway()" class="btn-opp">OPP RWY</button>
+            <button onclick="appendNumber('7')">7</button><button onclick="appendNumber('8')">8</button><button onclick="appendNumber('9')">9</button><button onclick="clearAll()" class="btn-clear">CLR</button>
+            <button onclick="appendNumber('4')">4</button><button onclick="appendNumber('5')">5</button><button onclick="appendNumber('6')">6</button><button onclick="deleteLast()" class="btn-del">DEL</button>
+            <button onclick="appendNumber('1')">1</button><button onclick="appendNumber('2')">2</button><button onclick="appendNumber('3')">3</button><button onclick="calculate()" class="btn-calc">CALC</button>
+            <button onclick="appendNumber('0')" style="grid-column: span 1">0</button><button onclick="appendNumber('.')">.</button><button onclick="switchRunway()" style="background:#6366f1; font-size:11px;">OPP RWY</button>
         </div>
     </div>
 
     <script>
         let currentActiveField = 'runway';
+        let isFirstInput = true; // 新しくフィールドを選んだ時の上書き判定用
+
+        function toggleSettings() {
+            const modal = document.getElementById('settings-modal');
+            modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+        }
 
         function setActive(f) {
             currentActiveField = f;
+            isFirstInput = true; // フィールドを切り替えたら次は上書き
             document.querySelectorAll('.field').forEach(el => el.classList.remove('active'));
             document.getElementById('field-' + f).classList.add('active');
         }
 
         function appendNumber(n) {
             const i = document.getElementById(currentActiveField);
-            i.value += n;
-            if (currentActiveField === 'runway' && i.value.length === 2) setActive('windDir');
-            else if (currentActiveField === 'windDir' && i.value.length === 3) setActive('windSpeed');
+            
+            // フィールド選択直後の1文字目は上書き
+            if (isFirstInput) {
+                i.value = n;
+                isFirstInput = false;
+            } else {
+                // 桁数制限
+                if (currentActiveField === 'runway' && i.value.length >= 2) return;
+                if (currentActiveField === 'windDir' && i.value.length >= 3) return;
+                if (currentActiveField === 'windSpeed' && i.value.length >= 3) return;
+                i.value += n;
+            }
+
+            // オートフォーカス
+            if (currentActiveField === 'runway' && i.value.length === 2) {
+                setActive('windDir');
+            } else if (currentActiveField === 'windDir' && i.value.length === 3) {
+                setActive('windSpeed');
+            }
         }
 
         function deleteLast() {
@@ -187,10 +233,11 @@
         }
 
         function switchRunway() {
-            const r = document.getElementById('runway');
-            let v = parseInt(r.value);
+            const rField = document.getElementById('runway');
+            let v = parseInt(rField.value);
             if (!isNaN(v)) {
-                r.value = (v <= 18 ? v + 18 : v - 18).toString().padStart(2, '0');
+                v = (v <= 18 ? v + 18 : v - 18);
+                rField.value = v.toString().padStart(2, '0');
                 calculate();
             }
         }
@@ -199,18 +246,26 @@
             const rVal = parseFloat(document.getElementById('runway').value);
             const d = parseFloat(document.getElementById('windDir').value);
             const s = parseFloat(document.getElementById('windSpeed').value);
-
             if (isNaN(rVal) || isNaN(d) || isNaN(s)) return;
 
             const rDeg = rVal * 10;
-            const rad = Math.abs(d - rDeg) * (Math.PI / 180);
+            const diff = d - rDeg;
+            const rad = diff * (Math.PI / 180);
             const xw = Math.abs(s * Math.sin(rad));
             const hw = s * Math.cos(rad);
 
             const res = document.getElementById('display-result');
-            res.className = xw > 38 ? 'danger' : xw > 19 ? 'warning' : '';
-            res.innerHTML = `X-WIND: ${xw.toFixed(1)} KT | ${hw >= 0 ? 'HEAD' : 'TAIL'}: ${Math.abs(hw).toFixed(1)} KT`;
+            res.className = "";
+            
+            // 追い風15kt超 or 横風38kt超 で赤
+            if (xw > 38 || (hw < -15)) {
+                res.classList.add('danger');
+            } else if (xw > 19) {
+                res.classList.add('warning');
+            }
 
+            res.innerHTML = `X-WIND: ${xw.toFixed(1)} KT<br>${hw >= 0 ? 'HEAD' : 'TAIL'}: ${Math.abs(hw).toFixed(1)} KT`;
+            
             drawVisuals(rDeg, d);
         }
 
@@ -219,51 +274,59 @@
             const ctx = canvas.getContext('2d');
             const cx = canvas.width / 2;
             const cy = canvas.height / 2;
+            const isHeadingUp = document.getElementById('mode-toggle').checked;
+            
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const rwyNum = document.getElementById('runway').value;
-
-            // 滑走路の描画
             ctx.save();
             ctx.translate(cx, cy);
-            ctx.rotate((rDeg - 90) * Math.PI / 180);
+
+            if (isHeadingUp) {
+                const windRel = (wDir - rDeg - 90) * Math.PI / 180;
+                drawRunway(ctx, 0, document.getElementById('runway').value);
+                drawWind(ctx, windRel);
+                drawNorth(ctx, -rDeg);
+            } else {
+                ctx.save();
+                ctx.rotate((rDeg - 90) * Math.PI / 180);
+                drawRunway(ctx, 0, document.getElementById('runway').value);
+                ctx.restore();
+                drawWind(ctx, (wDir - 90) * Math.PI / 180);
+                drawNorth(ctx, 0);
+            }
+            ctx.restore();
+        }
+
+        function drawRunway(ctx, angle, num) {
+            ctx.save();
+            ctx.rotate(angle);
             ctx.fillStyle = "#334155";
-            ctx.fillRect(-80, -15, 160, 30);
+            ctx.fillRect(-70, -15, 140, 30);
             ctx.strokeStyle = "white";
             ctx.setLineDash([5, 5]);
-            ctx.beginPath(); ctx.moveTo(-70, 0); ctx.lineTo(70, 0); ctx.stroke();
-            
-            // 滑走路番号
+            ctx.beginPath(); ctx.moveTo(-60, 0); ctx.lineTo(60, 0); ctx.stroke();
             ctx.setLineDash([]);
-            ctx.fillStyle = "white";
-            ctx.font = "bold 14px Arial";
-            ctx.save();
-            ctx.translate(-60, 0);
-            ctx.rotate(Math.PI / 2);
-            ctx.fillText(rwyNum, -8, 5);
+            ctx.fillStyle = "white"; ctx.font = "bold 12px Arial";
+            ctx.save(); ctx.translate(-50, 0); ctx.rotate(Math.PI/2); ctx.fillText(num, -8, 5); ctx.restore();
             ctx.restore();
-            ctx.restore();
+        }
 
-            // 矢羽根（風の矢印）
+        function drawWind(ctx, rad) {
             ctx.save();
-            ctx.translate(cx, cy);
-            ctx.rotate((wDir - 90) * Math.PI / 180);
-            ctx.strokeStyle = "#38bdf8";
-            ctx.fillStyle = "#38bdf8";
-            ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.moveTo(85, 0); ctx.lineTo(35, 0); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(35, 0); ctx.lineTo(48, -7); ctx.lineTo(48, 7); ctx.fill();
-            // 羽根の部分
-            ctx.beginPath();
-            ctx.moveTo(85, 0); ctx.lineTo(95, -10); ctx.moveTo(85, 0); ctx.lineTo(95, 10);
-            ctx.moveTo(75, 0); ctx.lineTo(85, -10); ctx.moveTo(75, 0); ctx.lineTo(85, 10);
-            ctx.stroke();
+            ctx.rotate(rad);
+            ctx.strokeStyle = "#38bdf8"; ctx.fillStyle = "#38bdf8"; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(80, 0); ctx.lineTo(30, 0); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(43, -7); ctx.lineTo(43, 7); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(80,0); ctx.lineTo(90,-10); ctx.moveTo(80,0); ctx.lineTo(90,10);
+            ctx.moveTo(70,0); ctx.lineTo(80,-10); ctx.moveTo(70,0); ctx.lineTo(80,10); ctx.stroke();
             ctx.restore();
+        }
 
-            // 北方位
+        function drawNorth(ctx, deg) {
+            ctx.save();
+            ctx.rotate(deg * Math.PI / 180);
             ctx.fillStyle = "#94a3b8";
-            ctx.font = "12px sans-serif";
-            ctx.fillText("N", cx - 4, 15);
+            ctx.fillText("N", -4, -65);
+            ctx.restore();
         }
     </script>
 </body>
