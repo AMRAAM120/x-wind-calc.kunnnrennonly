@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <title>X-Wind Pro - Elite</title>
+    <title>X-Wind Pro - Elite v2</title>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -41,7 +41,7 @@
         .visualizer-container {
             background: #020617; border-radius: 16px;
             margin-bottom: 15px; display: flex; justify-content: center;
-            border: 1px solid #334155; height: 200px; overflow: hidden;
+            border: 1px solid #334155; height: 180px; overflow: hidden;
         }
 
         .input-section {
@@ -50,90 +50,125 @@
 
         .field {
             background: #0f172a; padding: 8px; border-radius: 10px;
-            text-align: center; border: 2px solid transparent; transition: 0.2s;
+            text-align: center; border: 2px solid transparent;
         }
-        .field.active { border-color: var(--accent); box-shadow: 0 0 10px rgba(56, 189, 248, 0.3); }
+        .field.active { border-color: var(--accent); }
         .field label { display: block; font-size: 9px; color: var(--accent); font-weight: bold; margin-bottom: 2px; }
-        .field input { width: 100%; background: transparent; border: none; color: white; font-size: 18px; text-align: center; outline: none; }
+        .field input { width: 100%; background: transparent; border: none; color: white; font-size: 20px; text-align: center; outline: none; font-weight: bold; }
 
         #display-result {
-            background: #020617; height: 60px;
+            background: #020617; height: 64px;
             display: flex; align-items: center; justify-content: center;
-            text-align: center; font-size: 15px; font-weight: bold;
-            border-radius: 10px; margin-bottom: 12px; border: 1px solid #1e293b;
+            text-align: center; font-size: 16px; font-weight: bold;
+            border-radius: 10px; margin-bottom: 12px;
         }
-        #display-result.warn-text { color: var(--warning); border-color: var(--warning); }
-        #display-result.danger-text { color: var(--danger); border-color: var(--danger); }
+        .warn-text { color: var(--warning); border: 1px solid var(--warning); }
+        .danger-text { color: var(--danger); border: 1px solid var(--danger); }
 
         .keypad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-        .keypad button { padding: 14px 0; font-size: 18px; border: none; border-radius: 10px; background: #334155; color: white; }
-        .btn-calc { background: var(--accent) !important; grid-row: span 2; color: #0f172a !important; font-weight: bold; }
+        .keypad button { padding: 16px 0; font-size: 22px; border: none; border-radius: 10px; background: #334155; color: white; font-weight: 800; }
+        .btn-calc { background: var(--accent) !important; grid-row: span 2; color: #0f172a !important; }
 
         /* 設定画面 */
-        #settings-modal {
+        #settings-overlay {
             display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #0f172a; border-radius: 24px; z-index: 20; padding: 20px; box-sizing: border-box;
         }
-        .modal-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; text-align: center; }
-        .setting-list { background: #1e293b; border-radius: 12px; overflow: hidden; margin-bottom: 15px; }
-        .setting-item { 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 12px 15px; border-bottom: 1px solid #334155;
-        }
-        .setting-item:last-child { border-bottom: none; }
-        .limit-val { color: var(--accent); font-weight: bold; font-size: 16px; background: #0f172a; padding: 4px 10px; border-radius: 6px; min-width: 30px; text-align: center;}
+        .modal-header { display: flex; align-items: center; margin-bottom: 20px; height: 30px; }
+        .back-btn { background: none; border: none; color: var(--accent); font-size: 24px; cursor: pointer; padding: 0; margin-right: 15px; }
+        .modal-title { font-size: 18px; font-weight: bold; flex-grow: 1; text-align: center; margin-right: 30px; }
         
-        .active-limit { border: 2px solid var(--accent) !important; }
+        .menu-list { background: #1e293b; border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+        .menu-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 15px; border-bottom: 1px solid #334155; cursor: pointer;
+        }
+        .menu-item:active { background: #334155; }
+        .menu-item span { font-size: 15px; font-weight: 500; }
+
+        /* スイッチ */
+        .switch { position: relative; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--safe); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        .limit-active { border: 2px solid var(--accent) !important; background: #020617 !important; }
     </style>
 </head>
 <body>
 
     <div class="calculator">
-        <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
+        <button class="settings-btn" onclick="openMenu()">⚙️</button>
 
-        <div id="settings-modal">
-            <div class="modal-title">Limits & Config</div>
-            <div class="setting-list">
-                <div class="setting-item" onclick="setLimitTarget('pXwind')">
-                    <span>Personal X-Wind Limit</span>
-                    <div class="limit-val" id="val-pXwind">15</div>
+        <div id="settings-overlay">
+            <div id="page-main">
+                <div class="modal-header">
+                    <div class="modal-title">Settings</div>
                 </div>
-                <div class="setting-item" onclick="setLimitTarget('aXwind')">
-                    <span>Aircraft X-Wind Limit</span>
-                    <div class="limit-val" id="val-aXwind">25</div>
+                <div class="menu-list">
+                    <div class="menu-item">
+                        <span>North Up Mode</span>
+                        <label class="switch">
+                            <input type="checkbox" id="mode-toggle" onchange="calculate()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="menu-item" onclick="showPage('limit')">
+                        <span>Limits & Config</span>
+                        <span style="color: var(--gray);">＞</span>
+                    </div>
                 </div>
-                <div class="setting-item" onclick="setLimitTarget('pTail')">
-                    <span>Personal Tail Limit</span>
-                    <div class="limit-val" id="val-pTail">5</div>
-                </div>
-                <div class="setting-item" onclick="setLimitTarget('aTail')">
-                    <span>Aircraft Tail Limit</span>
-                    <div class="limit-val" id="val-aTail">10</div>
-                </div>
+                <button onclick="closeSettings()" style="width: 100%; padding: 15px; border-radius: 12px; background: var(--accent); color: #000; font-weight: bold; border: none;">Close</button>
             </div>
-            
-            <div class="keypad" id="settings-keypad">
-                <button onclick="appendLimitNum('7')">7</button><button onclick="appendLimitNum('8')">8</button><button onclick="appendLimitNum('9')">9</button><button onclick="clearLimit()">C</button>
-                <button onclick="appendLimitNum('4')">4</button><button onclick="appendLimitNum('5')">5</button><button onclick="appendLimitNum('6')">6</button><button onclick="toggleSettings()" style="background:var(--accent); color:#000; font-weight:bold; grid-row:span 3;">SET</button>
-                <button onclick="appendLimitNum('1')">1</button><button onclick="appendLimitNum('2')">2</button><button onclick="appendLimitNum('3')">3</button>
-                <button onclick="appendLimitNum('0')" style="grid-column: span 3;">0</button>
+
+            <div id="page-limit" style="display: none;">
+                <div class="modal-header">
+                    <button class="back-btn" onclick="showPage('main')">←</button>
+                    <div class="modal-title">Limits Config</div>
+                </div>
+                <div class="menu-list" style="margin-bottom: 10px;">
+                    <div class="menu-item" onclick="setLimitTarget('pXwind')">
+                        <span>Personal X-Wind</span>
+                        <div class="limit-val" id="val-pXwind" style="color: var(--accent); font-weight: 800; padding: 2px 8px; border-radius: 5px;">15</div>
+                    </div>
+                    <div class="menu-item" onclick="setLimitTarget('aXwind')">
+                        <span>Aircraft X-Wind</span>
+                        <div class="limit-val" id="val-aXwind" style="color: var(--accent); font-weight: 800; padding: 2px 8px; border-radius: 5px;">25</div>
+                    </div>
+                    <div class="menu-item" onclick="setLimitTarget('pTail')">
+                        <span>Personal Tail</span>
+                        <div class="limit-val" id="val-pTail" style="color: var(--accent); font-weight: 800; padding: 2px 8px; border-radius: 5px;">5</div>
+                    </div>
+                    <div class="menu-item" onclick="setLimitTarget('aTail')">
+                        <span>Aircraft Tail</span>
+                        <div class="limit-val" id="val-aTail" style="color: var(--accent); font-weight: 800; padding: 2px 8px; border-radius: 5px;">10</div>
+                    </div>
+                </div>
+                <div class="keypad">
+                    <button onclick="appendLimitNum('7')">7</button><button onclick="appendLimitNum('8')">8</button><button onclick="appendLimitNum('9')">9</button><button onclick="clearLimit()">C</button>
+                    <button onclick="appendLimitNum('4')">4</button><button onclick="appendLimitNum('5')">5</button><button onclick="appendLimitNum('6')">6</button><button onclick="showPage('main')" style="background:var(--safe) !important; grid-row:span 3;">OK</button>
+                    <button onclick="appendLimitNum('1')">1</button><button onclick="appendLimitNum('2')">2</button><button onclick="appendLimitNum('3')">3</button>
+                    <button onclick="appendLimitNum('0')" style="grid-column: span 3;">0</button>
+                </div>
             </div>
         </div>
 
         <div class="visualizer-container">
-            <canvas id="windCanvas" width="300" height="200"></canvas>
+            <canvas id="windCanvas" width="300" height="180"></canvas>
         </div>
 
         <div class="screen">
             <div class="input-section">
                 <div class="field active" id="field-runway" onclick="setActive('runway')">
-                    <label>Runway</label><input id="runway" type="text" placeholder="00" readonly>
+                    <label>Runway</label><input id="runway" type="text" readonly>
                 </div>
                 <div class="field" id="field-windDir" onclick="setActive('windDir')">
-                    <label>Wind Dir</label><input id="windDir" type="text" placeholder="000" readonly>
+                    <label>Wind Dir</label><input id="windDir" type="text" readonly>
                 </div>
                 <div class="field" id="field-windSpeed" onclick="setActive('windSpeed')">
-                    <label>Wind Speed</label><input id="windSpeed" type="text" placeholder="00" readonly>
+                    <label>Wind Speed</label><input id="windSpeed" type="text" readonly>
                 </div>
             </div>
             <div id="display-result">READY</div>
@@ -141,9 +176,9 @@
 
         <div class="keypad">
             <button onclick="appendNumber('7')">7</button><button onclick="appendNumber('8')">8</button><button onclick="appendNumber('9')">9</button><button onclick="clearAll()" style="background:#475569; font-size:14px;">CLR</button>
-            <button onclick="appendNumber('4')')">4</button><button onclick="appendNumber('5')">5</button><button onclick="appendNumber('6')">6</button><button onclick="deleteLast()" style="background:#475569; font-size:14px;">DEL</button>
+            <button onclick="appendNumber('4')">4</button><button onclick="appendNumber('5')">5</button><button onclick="appendNumber('6')">6</button><button onclick="deleteLast()" style="background:#475569; font-size:14px;">DEL</button>
             <button onclick="appendNumber('1')">1</button><button onclick="appendNumber('2')">2</button><button onclick="appendNumber('3')">3</button><button onclick="calculate()" class="btn-calc">CALC</button>
-            <button onclick="appendNumber('0')" style="grid-column: span 1">0</button><button onclick="appendNumber('.')">.</button><button onclick="switchRunway()" style="background:#6366f1; font-size:11px;">OPP RWY</button>
+            <button onclick="appendNumber('0')">0</button><button onclick="appendNumber('.')">.</button><button onclick="switchRunway()" style="background:#6366f1; font-size:11px;">OPP RWY</button>
         </div>
     </div>
 
@@ -151,22 +186,22 @@
         let currentActiveField = 'runway';
         let isFirstInput = true;
         let limitTarget = 'pXwind';
-
-        // 限界値の初期値
         const limits = { pXwind: 15, aXwind: 25, pTail: 5, aTail: 10 };
 
-        function toggleSettings() {
-            const modal = document.getElementById('settings-modal');
-            const isOpening = modal.style.display !== 'block';
-            modal.style.display = isOpening ? 'block' : 'none';
-            if (!isOpening) calculate(); // 閉じる時に再計算
+        function openMenu() { document.getElementById('settings-overlay').style.display = 'block'; showPage('main'); }
+        function closeSettings() { document.getElementById('settings-overlay').style.display = 'none'; calculate(); }
+        
+        function showPage(p) {
+            document.getElementById('page-main').style.display = p === 'main' ? 'block' : 'none';
+            document.getElementById('page-limit').style.display = p === 'limit' ? 'block' : 'none';
+            if(p === 'limit') setLimitTarget('pXwind');
         }
 
-        function setLimitTarget(target) {
-            limitTarget = target;
-            document.querySelectorAll('.limit-val').forEach(el => el.classList.remove('active-limit'));
-            document.getElementById('val-' + target).classList.add('active-limit');
+        function setLimitTarget(t) {
+            limitTarget = t;
             isFirstInput = true;
+            document.querySelectorAll('.limit-val').forEach(el => el.classList.remove('limit-active'));
+            document.getElementById('val-' + t).classList.add('limit-active');
         }
 
         function appendLimitNum(n) {
@@ -175,16 +210,10 @@
             else { if (el.innerText.length < 3) el.innerText += n; }
             limits[limitTarget] = parseInt(el.innerText);
         }
-
-        function clearLimit() {
-            document.getElementById('val-' + limitTarget).innerText = "0";
-            limits[limitTarget] = 0;
-            isFirstInput = true;
-        }
+        function clearLimit() { document.getElementById('val-' + limitTarget).innerText = "0"; isFirstInput = true; }
 
         function setActive(f) {
-            currentActiveField = f;
-            isFirstInput = true;
+            currentActiveField = f; isFirstInput = true;
             document.querySelectorAll('.field').forEach(el => el.classList.remove('active'));
             document.getElementById('field-' + f).classList.add('active');
         }
@@ -194,130 +223,67 @@
             if (isFirstInput) { i.value = n; isFirstInput = false; }
             else {
                 if (currentActiveField === 'runway' && i.value.length >= 2) return;
-                if (currentActiveField.startsWith('wind') && i.value.length >= 3) return;
+                if (i.value.length >= 3) return;
                 i.value += n;
             }
             if (currentActiveField === 'runway' && i.value.length === 2) setActive('windDir');
             else if (currentActiveField === 'windDir' && i.value.length === 3) setActive('windSpeed');
         }
 
-        function deleteLast() {
-            const i = document.getElementById(currentActiveField);
-            i.value = i.value.slice(0, -1);
-        }
-
-        function clearAll() {
-            document.querySelectorAll('.screen input').forEach(i => i.value = "");
-            setActive('runway');
-            document.getElementById('display-result').className = "";
-            document.getElementById('display-result').innerText = "READY";
-            calculate();
-        }
-
+        function deleteLast() { document.getElementById(currentActiveField).value = document.getElementById(currentActiveField).value.slice(0, -1); }
+        function clearAll() { document.querySelectorAll('.screen input').forEach(i => i.value = ""); setActive('runway'); calculate(); }
         function switchRunway() {
             const r = document.getElementById('runway');
-            let v = parseInt(r.value);
-            if (!isNaN(v)) {
-                r.value = (v <= 18 ? v + 18 : v - 18).toString().padStart(2, '0');
-                calculate();
-            }
+            if(r.value) { r.value = (parseInt(r.value) <= 18 ? parseInt(r.value)+18 : parseInt(r.value)-18).toString().padStart(2,'0'); calculate(); }
         }
 
         function calculate() {
-            const rVal = parseFloat(document.getElementById('runway').value);
-            const d = parseFloat(document.getElementById('windDir').value);
-            const s = parseFloat(document.getElementById('windSpeed').value);
+            const rVal = parseFloat(document.getElementById('runway').value), d = parseFloat(document.getElementById('windDir').value), s = parseFloat(document.getElementById('windSpeed').value);
             if (isNaN(rVal) || isNaN(d) || isNaN(s)) return;
-
-            const rDeg = rVal * 10;
-            const rad = (d - rDeg) * (Math.PI / 180);
-            const xw = Math.abs(s * Math.sin(rad));
-            const hw = s * Math.cos(rad);
-
+            const rDeg = rVal * 10, rad = (d - rDeg) * (Math.PI / 180), xw = Math.abs(s * Math.sin(rad)), hw = s * Math.cos(rad);
             const res = document.getElementById('display-result');
             res.className = "";
-            
-            // ロジック：航空機限界(赤) > 自己限界(黄)
-            if (xw > limits.aXwind || (hw < -limits.aTail)) {
-                res.classList.add('danger-text');
-            } else if (xw > limits.pXwind || (hw < -limits.pTail)) {
-                res.classList.add('warn-text');
-            }
-
+            if (xw > limits.aXwind || (hw < -limits.aTail)) res.classList.add('danger-text');
+            else if (xw > limits.pXwind || (hw < -limits.pTail)) res.classList.add('warn-text');
             res.innerHTML = `X-WIND: ${xw.toFixed(1)} KT<br>${hw >= 0 ? 'HEAD' : 'TAIL'}: ${Math.abs(hw).toFixed(1)} KT`;
-            drawVisuals(rDeg, d);
+            draw(rDeg, d);
         }
 
-        function drawVisuals(rDeg, wDir) {
-            const canvas = document.getElementById('windCanvas');
-            const ctx = canvas.getContext('2d');
-            const cx = canvas.width / 2;
-            const cy = canvas.height / 2;
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.save();
-            ctx.translate(cx, cy);
-
-            // 1. コンパスローズ（背景目盛り）
-            ctx.strokeStyle = "#1e293b";
-            ctx.lineWidth = 1;
-            for(let i=0; i<360; i+=10) {
-                ctx.save();
-                ctx.rotate(i * Math.PI / 180);
-                ctx.beginPath();
-                ctx.moveTo(0, -85);
-                ctx.lineTo(0, i % 90 === 0 ? -70 : -80);
-                ctx.stroke();
-                ctx.restore();
+        function draw(rDeg, wDir) {
+            const c = document.getElementById('windCanvas'), ctx = c.getContext('2d'), cx = c.width/2, cy = c.height/2;
+            ctx.clearRect(0,0,c.width,c.height);
+            ctx.save(); ctx.translate(cx,cy);
+            if (document.getElementById('mode-toggle').checked) { // North Up
+                ctx.save(); ctx.rotate((rDeg-90)*Math.PI/180); drawR(ctx, document.getElementById('runway').value); ctx.restore();
+                drawW(ctx, (wDir-90)*Math.PI/180); drawN(ctx, 0);
+            } else { // Heading Up
+                drawR(ctx, document.getElementById('runway').value);
+                drawW(ctx, (wDir-rDeg-90)*Math.PI/180); drawN(ctx, -rDeg);
             }
-
-            // 2. 滑走路（縦固定）
-            drawRunway(ctx, document.getElementById('runway').value);
-
-            // 3. 風の矢印（相対角度）
-            const windRel = (wDir - rDeg - 90) * Math.PI / 180;
-            drawWind(ctx, windRel);
-
-            // 4. 北方位ポインター
-            ctx.save();
-            ctx.rotate(-rDeg * Math.PI / 180);
-            ctx.fillStyle = "#475569";
-            ctx.font = "bold 14px Arial";
-            ctx.fillText("N", -5, -90);
-            ctx.restore();
-
             ctx.restore();
         }
 
-        function drawRunway(ctx, num) {
-            ctx.fillStyle = "#334155";
-            ctx.fillRect(-15, -60, 30, 120);
-            ctx.strokeStyle = "rgba(255,255,255,0.5)";
-            ctx.setLineDash([5, 5]);
-            ctx.beginPath(); ctx.moveTo(0, -50); ctx.lineTo(0, 50); ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.fillStyle = "white"; ctx.font = "bold 12px Arial"; ctx.textAlign = "center";
+        function drawR(ctx, num) {
+            ctx.fillStyle = "#334155"; ctx.fillRect(-15,-60,30,120);
+            ctx.strokeStyle = "white"; ctx.setLineDash([5,5]); ctx.beginPath(); ctx.moveTo(0,-50); ctx.lineTo(0,50); ctx.stroke();
+            ctx.setLineDash([]); ctx.fillStyle = "white"; ctx.font = "bold 14px Arial"; ctx.textAlign = "center";
             ctx.fillText(num, 0, 55);
-            
-            // 反対側
-            let opp = (parseInt(num) <= 18 ? parseInt(num) + 18 : parseInt(num) - 18);
-            ctx.save(); ctx.translate(0, -45); ctx.rotate(Math.PI);
-            ctx.fillText(opp.toString().padStart(2, '0'), 0, 0); ctx.restore();
+            let opp = (parseInt(num) <= 18 ? parseInt(num)+18 : parseInt(num)-18).toString().padStart(2,'0');
+            ctx.save(); ctx.translate(0,-45); ctx.rotate(Math.PI); ctx.fillText(opp, 0, 0); ctx.restore();
         }
 
-        function drawWind(ctx, rad) {
-            ctx.save();
-            ctx.rotate(rad);
-            ctx.strokeStyle = varProp('--accent'); ctx.fillStyle = varProp('--accent'); ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.moveTo(90, 0); ctx.lineTo(40, 0); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(40, 0); ctx.lineTo(53, -7); ctx.lineTo(53, 7); ctx.fill();
-            // 矢羽根
-            ctx.beginPath(); ctx.moveTo(90,0); ctx.lineTo(100,-10); ctx.moveTo(90,0); ctx.lineTo(100,10);
-            ctx.moveTo(80,0); ctx.lineTo(90,-10); ctx.moveTo(80,0); ctx.lineTo(90,10); ctx.stroke();
+        function drawW(ctx, rad) {
+            ctx.save(); ctx.rotate(rad);
+            ctx.strokeStyle = "#38bdf8"; ctx.fillStyle = "#38bdf8"; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(85,0); ctx.lineTo(35,0); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(35,0); ctx.lineTo(48,-7); ctx.lineTo(48,7); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(85,0); ctx.lineTo(95,-10); ctx.moveTo(85,0); ctx.lineTo(95,10); ctx.stroke();
             ctx.restore();
         }
 
-        function varProp(name) { return getComputedStyle(document.documentElement).getPropertyValue(name); }
+        function drawN(ctx, deg) {
+            ctx.save(); ctx.rotate(deg*Math.PI/180); ctx.fillStyle = "#94a3b8"; ctx.fillText("N", 0, -80); ctx.restore();
+        }
     </script>
 </body>
 </html>
