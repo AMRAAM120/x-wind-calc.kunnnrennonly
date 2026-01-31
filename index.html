@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <title>X-Wind Pro - Minimalist Elite</title>
+    <title>X-Wind Pro - Minimalist Elite v7</title>
     <style>
         :root {
             --bg-color: #0f121a;
@@ -210,31 +210,30 @@
             const rText = document.getElementById('runway').value || "00";
             ctx.clearRect(0,0,c.width,c.height);
             ctx.save(); ctx.translate(cx,cy);
+            
+            // 方位目盛り
             ctx.strokeStyle = "#2a3147"; ctx.lineWidth = 1.5;
             for(let i=0; i<360; i+=10) {
                 ctx.save(); ctx.rotate(i*Math.PI/180);
                 ctx.beginPath(); ctx.moveTo(0,-80); ctx.lineTo(0, i%90===0?-65:-75); ctx.stroke(); ctx.restore();
             }
-            if(document.getElementById('mode-toggle').checked) {
+
+            if(document.getElementById('mode-toggle').checked) { // North Up
                 ctx.save(); ctx.rotate((rDeg-90)*Math.PI/180); drawR(ctx, rText); ctx.restore();
-                drawW(ctx, (wDir-90)*Math.PI/180); drawN(ctx, 0);
-            } else {
+                drawSimpleArrow(ctx, (wDir-90)*Math.PI/180); drawN(ctx, 0);
+            } else { // Heading Up
                 drawR(ctx, rText);
-                drawW(ctx, (wDir-rDeg-90)*Math.PI/180); drawN(ctx, -rDeg);
+                drawSimpleArrow(ctx, (wDir-rDeg-90)*Math.PI/180); drawN(ctx, -rDeg);
             }
             ctx.restore();
         }
 
         function drawR(ctx, num) {
-            // 滑走路本体
             ctx.fillStyle = "#3d445a"; ctx.fillRect(-12, -60, 24, 120);
-            // センターライン（細くシャープに）
             ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 0.8; ctx.setLineDash([5, 5]);
             ctx.beginPath(); ctx.moveTo(0, -50); ctx.lineTo(0, 50); ctx.stroke(); ctx.setLineDash([]);
-            // スレッショルドのみ（ピアノキー）
             ctx.fillStyle = "white";
             for(let i=-8; i<=8; i+=4) { ctx.fillRect(i, 52, 2, 8); ctx.fillRect(i, -60, 2, 8); }
-            // 滑走路番号（縁取りなしでスッキリ）
             ctx.font = "bold 13px Arial"; ctx.textAlign = "center";
             ctx.fillText(num, 0, 48);
             let n = parseInt(num) || 0;
@@ -242,12 +241,32 @@
             ctx.save(); ctx.translate(0,-40); ctx.rotate(Math.PI); ctx.fillText(opp, 0, 0); ctx.restore();
         }
 
-        function drawW(ctx, rad) {
-            ctx.save(); ctx.rotate(rad);
-            ctx.strokeStyle="#00e5ff"; ctx.fillStyle="#00e5ff"; ctx.lineWidth=4;
-            ctx.beginPath(); ctx.moveTo(80,0); ctx.lineTo(35,0); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(35,0); ctx.lineTo(48,-8); ctx.lineTo(48,8); ctx.fill();
-            ctx.beginPath(); ctx.moveTo(80,0); ctx.lineTo(92,-12); ctx.moveTo(80,0); ctx.lineTo(92,12); ctx.stroke();
+        // 普通の矢印（先端が中心を指す）
+        function drawSimpleArrow(ctx, rad) {
+            const headlen = 12; // 矢印の頭の長さ
+            const startDist = 90; // 矢印の根元の距離（外側）
+            const endDist = 38; // 矢印の先端の距離（滑走路に重ならないよう中心の少し手前まで）
+
+            ctx.save();
+            ctx.rotate(rad);
+            ctx.strokeStyle = "#00e5ff";
+            ctx.fillStyle = "#00e5ff";
+            ctx.lineWidth = 4;
+
+            // 矢印の直線部分（外から中へ向かって引く）
+            ctx.beginPath();
+            ctx.moveTo(startDist, 0);
+            ctx.lineTo(endDist, 0);
+            ctx.stroke();
+
+            // 矢印の頭（先端 endDist を中心を指すように描画）
+            ctx.beginPath();
+            ctx.moveTo(endDist, 0);
+            ctx.lineTo(endDist + headlen * Math.cos(Math.PI / 6), -headlen * Math.sin(Math.PI / 6));
+            ctx.lineTo(endDist + headlen * Math.cos(-Math.PI / 6), -headlen * Math.sin(-Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+
             ctx.restore();
         }
 
